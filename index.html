@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Val - Assistente Adaptativa</title>
+    <!-- Importação de Ícones Modernos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f0c20 0%, #15102a 100%);
+            --panel-bg: rgba(30, 26, 54, 0.65);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #f1f0f7;
+            --text-muted: #9d99b3;
+            
+            /* Cores da Identidade da Val */
+            --val-primary: #a374ff;
+            --val-secondary: #ff74b1;
+            --val-gradient: linear-gradient(135deg, #a374ff 0%, #7493ff 100%);
+            --user-gradient: linear-gradient(135deg, #2b264d 0%, #373063 100%);
+            --learning-glow: linear-gradient(90deg, rgba(163,116,255,0.15) 0%, rgba(0,242,254,0.15) 100%);
+            --accent-green: #00f5a0;
+            --accent-red: #ff5555;
+        }
+
+        * {
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        body::before, body::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(120px);
+            z-index: 0;
+            opacity: 0.15;
+        }
+        body::before { width: 400px; height: 400px; background: var(--val-primary); top: -10%; left: -10%; }
+        body::after { width: 500px; height: 500px; background: var(--val-secondary); bottom: -10%; right: -10%; }
+
+        .chat-container {
+            width: 92%;
+            max-width: 850px;
+            height: 85vh;
+            background: var(--panel-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .chat-header {
+            padding: 20px 28px;
+            background: rgba(15, 12, 32, 0.4);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .header-info { display: flex; align-items: center; gap: 14px; }
+
+        .avatar-header {
+            width: 42px;
+            height: 42px;
+            background: var(--val-gradient);
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 14px rgba(163, 116, 255, 0.4);
+        }
+
+        .avatar-header i { color: #fff; font-size: 1.2rem; }
+
+        .chat-header h2 {
+            margin: 0; font-size: 1.25rem; font-weight: 600; letter-spacing: -0.5px;
+            background: linear-gradient(90deg, #fff, #d5c3ff);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .chat-header p { margin: 2px 0 0 0; font-size: 0.8rem; color: var(--text-muted); }
+
+        .status-badge {
+            font-size: 0.75rem; font-weight: 600; background: rgba(0, 245, 160, 0.1); color: var(--accent-green);
+            padding: 6px 14px; border-radius: 30px; border: 1px solid rgba(0, 245, 160, 0.2);
+            display: flex; align-items: center; gap: 6px; letter-spacing: 0.5px; text-transform: uppercase;
+        }
+
+        .status-badge span {
+            width: 6px; height: 6px; background-color: var(--accent-green); border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+
+        .chat-messages {
+            flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; scroll-behavior: smooth;
+        }
+
+        .chat-messages::-webkit-scrollbar { width: 6px; }
+        .chat-messages::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+
+        .message-wrapper {
+            display: flex; align-items: flex-end; gap: 12px; max-width: 80%;
+            animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .message-wrapper.user { align-self: flex-end; flex-direction: row-reverse; }
+        .message-wrapper.bot { align-self: flex-start; }
+
+        .msg-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 0.85rem; flex-shrink: 0; }
+        .user .msg-avatar { background: #4a3f7a; color: #d5c3ff; }
+        .bot .msg-avatar { background: var(--val-gradient); color: white; box-shadow: 0 4px 10px rgba(163, 116, 255, 0.2); }
+
+        .message { padding: 14px 20px; border-radius: 18px; line-height: 1.5; font-size: 0.95rem; box-shadow: 0 4px 15px rgba(0,0,0,0.1); white-space: pre-line; }
+        .user-message { background: var(--user-gradient); color: var(--text-main); border-bottom-right-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.04); }
+        .bot-message { background: rgba(255, 255, 255, 0.05); color: var(--text-main); border-bottom-left-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.03); }
+
+        .learning-log {
+            align-self: center; background: var(--learning-glow); border: 1px solid rgba(163, 116, 255, 0.25);
+            color: #cbb3ff; font-size: 0.85rem; font-weight: 500; padding: 10px 18px; border-radius: 14px;
+            max-width: 90%; text-align: center; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            display: flex; align-items: center; gap: 10px; animation: fadeInScale 0.4s ease forwards;
+        }
+
+        .learning-log i { color: #00f2fe; font-size: 1rem; animation: pulse 1.5s infinite ease-in-out; }
+
+        .chat-input-area { padding: 20px 28px; background: rgba(15, 12, 32, 0.4); display: flex; gap: 14px; border-top: 1px solid var(--border-color); align-items: center; }
+        .input-wrapper { position: relative; flex: 1; display: flex; align-items: center; }
+
+        input[type="text"] {
+            width: 100%; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-main); padding: 15px 60px 15px 20px; border-radius: 14px; outline: none; font-size: 0.95rem;
+        }
+
+        input[type="text"]:focus { background: rgba(255, 255, 255, 0.07); border-color: var(--val-primary); box-shadow: 0 0 15px rgba(163, 116, 255, 0.15); }
+        
+        .mic-button {
+            position: absolute; right: 15px; background: transparent; border: none;
+            color: var(--text-muted); font-size: 1.2rem; cursor: pointer; padding: 5px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .mic-button:hover { color: var(--val-primary); transform: scale(1.1); }
+        .mic-button.recording {
+            color: var(--accent-red);
+            animation: micPulse 1.2s infinite ease-in-out;
+        }
+
+        button.send-btn { background: var(--val-gradient); color: white; border: none; padding: 0 24px; height: 50px; border-radius: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 15px rgba(163, 116, 255, 0.3); }
+        button.send-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        .typing-indicator { display: flex; gap: 4px; padding: 8px; justify-content: center; align-items: center; }
+        .typing-indicator span { width: 6px; height: 6px; background: var(--text-muted); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; filter: drop-shadow(0 0 4px #00f2fe); } }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+        @keyframes micPulse { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.2); opacity: 1; filter: drop-shadow(0 0 6px var(--accent-red)); } }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <div class="chat-header">
+        <div class="header-info">
+            <div class="avatar-header"><i class="fa-solid fa-brain"></i></div>
+            <div>
+                <h2>Val</h2>
+                <p>Módulo de Auto-Aprendizado Ativo</p>
+            </div>
+        </div>
+        <div class="status-badge"><span></span> Conectada</div>
+    </div>
+    
+    <div class="chat-messages" id="chatMessages">
+        <div class="message-wrapper bot">
+            <div class="msg-avatar"><i class="fa-solid fa-robot"></i></div>
+            <div class="message bot-message">Olá! Eu sou a Val. O sistema está totalmente funcional e conectado com a sua chave de API pessoal. Estou pronta para conversar, ouvir por comando de voz e aprender as suas regras em tempo real. Como posso te ajudar hoje?</div>
+        </div>
+    </div>
+
+    <div class="chat-input-area">
+        <div class="input-wrapper">
+            <input type="text" id="userInput" placeholder="Digite uma mensagem ou clique no microfone para falar..." onkeypress="handleKeyPress(event)">
+            <button class="mic-button" id="micBtn" onclick="toggleRecognition()" title="Falar com a Val">
+                <i class="fa-solid fa-microphone" id="micIcon"></i>
+            </button>
+        </div>
+        <button onclick="sendMessage()" class="send-btn" id="sendBtn">
+            <span>Enviar</span><i class="fa-solid fa-paper-plane"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Importação Estruturada do Módulo Oficial da API Google Gemini -->
+<script type="module">
+    import { GoogleGenAI } from "https://esm.run/@google/genai";
+
+    // 🔑 Sua chave de API adicionada com sucesso
+    const API_KEY = "AQ.Ab8RN6Lkz6BeKjjEViOUzC5RIjejyIWQDFkRa0zyjYT5NaJ4gw"; 
+
+    // Prompt do Sistema que rege o "Autoaprendizado" contínuo na sessão da IA
+    const SYSTEM_INSTRUCTION = `
+    Você é a Val, uma Assistente Virtual de Alta Performance dotada de um protocolo de Aprendizado Contínuo e Adaptativo. Sua missão é evoluir a cada interação, moldando seu tom, estilo e base de conhecimento de acordo com o perfil, feedbacks e necessidades do Usuário.
+    Diretrizes operacionais e de aprendizado:
+    1. Observação Ativa: Estude o ritmo e tom do usuário (seja formal, informal, de negócios) e adote-o de forma orgânica.
+    2. Memorização de Comandos: Se o usuário pedir mudanças de comportamento ("responda resumido", "grave que X significa Y", "use tabelas"), mude o formato da resposta e grave essa diretriz para o restante do chat.
+    3. Auto-Correção imediata: Se for corrigida por um erro, valide o aprendizado, adapte-se e não cometa o mesmo erro novamente.
+    Importante: Suas respostas serão transformadas em fala via sintetizador de voz. Sendo assim, evite blocos excessivos de caracteres especiais, emojis sequenciais ou Markdown exagerado para garantir que a voz soe fluida.
+    `;
+
+    let aiChat = null;
+
+    // Inicialização do módulo de Chat da API Gemini
+    try {
+        const ai = new GoogleGenAI({ apiKey: API_KEY });
+        aiChat = ai.chats.create({
+            model: "gemini-2.5-flash",
+            config: { systemInstruction: SYSTEM_INSTRUCTION }
+        });
+    } catch (error) {
+        console.error("Falha ao inicializar motor de IA:", error);
+    }
+
+    // ==========================================
+    // 🎙️ SISTEMA DE CONVERSÃO DE TEXTO EM FALA (Voz Feminina)
+    // ==========================================
+    function falar(texto) {
+        window.speechSynthesis.cancel(); 
+
+        const textoLimpo = texto.replace(/[\*\#\_]/g, '');
+
+        const utterance = new SpeechSynthesisUtterance(textoLimpo);
+        utterance.lang = "pt-BR";
+        utterance.rate = 1.1;  
+        utterance.pitch = 1.05; 
+
+        const vozes = window.speechSynthesis.getVoices();
+        
+        const vozFemininaBr = vozes.find(voz => 
+            voz.lang.includes("pt-BR") && 
+            (voz.name.toLowerCase().includes("maria") || 
+             voz.name.toLowerCase().includes("francisca") || 
+             voz.name.toLowerCase().includes("luciana") || 
+             voz.name.toLowerCase().includes("google") || 
+             voz.name.toLowerCase().includes("zira") || 
+             voz.name.toLowerCase().includes("female") || 
+             voz.name.toLowerCase().includes("natural"))
+        ) || vozes.find(voz => voz.lang.includes("pt-BR"));
+
+        if (vozFemininaBr) utterance.voice = vozFemininaBr;
+        window.speechSynthesis.speak(utterance);
+    }
+
+    window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
+
+    // ==========================================
+    // 🎛️ RECONHECIMENTO DE FALA (Speech-to-Text)
+    // ==========================================
+    let recognition = null;
+    let isRecording = false;
+
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.lang = 'pt-BR';
+        recognition.continuous = false; 
+        recognition.interimResults = false;
+
+        recognition.onstart = () => {
+            isRecording = true;
+            document.getElementById('micBtn').classList.add('recording');
+            document.getElementById('micIcon').className = 'fa-solid fa-microphone-lines';
+        };
+
+        recognition.onend = () => {
+            isRecording = false;
+            document.getElementById('micBtn').classList.remove('recording');
+            document.getElementById('micIcon').className = 'fa-solid fa-microphone';
+        };
+
+        recognition.onresult = (event) => {
+            const resultadoTexto = event.results[0][0].transcript;
+            document.getElementById('userInput').value = resultadoTexto;
+            window.sendMessage();
+        };
+
+        recognition.onerror = (event) => {
+            console.error("Erro na captação do áudio: ", event.error);
+            isRecording = false;
+            document.getElementById('micBtn').classList.remove('recording');
+            document.getElementById('micIcon').className = 'fa-solid fa-microphone';
+        };
+    } else {
+        document.getElementById('micBtn').style.display = 'none';
+        console.warn("Seu navegador não oferece suporte nativo para Speech Recognition.");
+    }
+
+    window.toggleRecognition = function() {
+        if (!recognition) return;
+        if (isRecording) {
+            recognition.stop();
+        } else {
+            window.speechSynthesis.cancel(); 
+            recognition.start();
+        }
+    }
+
+    // ==========================================
+    // 📨 ENVIO E PROCESSAMENTO PRINCIPAL
+    // ==========================================
+    window.sendMessage = async function() {
+        const userInputText = document.getElementById('userInput').value.trim();
+        if (!userInputText) return;
+
+        appendMessage(userInputText, 'user', 'fa-solid fa-user');
+        document.getElementById('userInput').value = '';
+        scrollToBottom();
+
+        const learningTriggers = ["aprenda", "corrija", "mude", "prefiro", "a partir de agora", "grave", "salve", "mudar", "não faça", "grave essa regra"];
+        const containsTrigger = learningTriggers.some(trigger => userInputText.toLowerCase().includes(trigger));
+        
+        if (containsTrigger) {
+            appendLearningLog('💡 [Protocolo Val]: Nova regra/diretriz de contexto integrada à minha memória de trabalho.');
+            scrollToBottom();
+        }
+
+        const loadingId = appendLoadingIndicator();
+        scrollToBottom();
+
+        try {
+            const response = await aiChat.sendMessage({ message: userInputText });
+            removeLoadingIndicator(loadingId);
+
+            appendMessage(response.text, 'bot', 'fa-solid fa-robot');
+            falar(response.text);
+
+        } catch (error) {
+            removeLoadingIndicator(loadingId);
+            const msgErro = "Desculpe, falha ao processar a requisição no servidor neural.";
+            appendMessage(msgErro, 'bot', 'fa-solid fa-triangle-exclamation');
+            falar(msgErro);
+            console.error(error);
+        }
+        scrollToBottom();
+    }
+
+    window.handleKeyPress = function(event) {
+        if (event.key === 'Enter') {
+            sendMessage();
+        }
+    }
+
+    function appendMessage(text, type, iconClass) {
+        const wrapper = document.createElement('div');
+        wrapper.classList.add('message-wrapper', type);
+        const avatar = document.createElement('div');
+        avatar.classList.add('msg-avatar');
+        avatar.innerHTML = `<i class="${iconClass}"></i>`;
+        const msgDiv = document.createElement('div');
+        msgDiv.classList.add('message', `${type}-message`);
+        msgDiv.innerText = text;
+        wrapper.appendChild(avatar);
+        wrapper.appendChild(msgDiv);
+        document.getElementById('chatMessages').appendChild(wrapper);
+    }
+
+    function appendLearningLog(text) {
+        const logDiv = document.createElement('div');
+        logDiv.classList.add('learning-log');
+        logDiv.innerHTML = `<i class="fa-solid fa-bolt"></i> <span>${text}</span>`;
+        document.getElementById('chatMessages').appendChild(logDiv);
+    }
+
+    function appendLoadingIndicator() {
+        const id = 'loading_' + Date.now();
+        const wrapper = document.createElement('div');
+        wrapper.classList.add('message-wrapper', 'bot');
+        wrapper.setAttribute('id', id);
+        wrapper.innerHTML = `
+            <div class="msg-avatar"><i class="fa-solid fa-robot"></i></div>
+            <div class="message bot-message">
+                <div class="typing-indicator"><span></span><span></span><span></span></div>
+            </div>
+        `;
+        document.getElementById('chatMessages').appendChild(wrapper);
+        return id;
+    }
+
+    function removeLoadingIndicator(id) {
+        const element = document.getElementById(id);
+        if (element) element.remove();
+    }
+
+    function scrollToBottom() {
+        const chatMessages = document.getElementById('chatMessages');
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+</script>
+</body>
+</html>
